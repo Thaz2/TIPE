@@ -6,7 +6,8 @@
 
 
 
-#####        READ ME
+
+##########        READ ME
 
 ''' Objectif: Automatiser la manoeuvre '''
 
@@ -18,25 +19,27 @@
 
 
 
-#####        IMPORTATION DES MODULES
+
+##########        IMPORTATION DES MODULES
 
 import math
 import matplotlib.pyplot as plt
 from numpy import *
 
-# Pour une modélisation 3D :
-
-from mpl_toolkits.mplot3d import Axes3D
-ax = Axes3D(plt.figure()) 
+from mpl_toolkits.mplot3d import Axes3D     # Pour une modélisation 3D
+ax = Axes3D(plt.figure())
 
 
 
 
-#####         CREATION D'UNE CLASSE VECTEUR 3D
+
+
+##########         CREATION D'UNE CLASSE VECTEUR 3D
 
 ''' Permet d'améliorer la gestion du code
     et de grandement faciliter sa lisibilité / compréhension,
     surtout grâce à l'utilisation de surcharges de méthodes '''
+
 
 class Vecteur :
 
@@ -65,13 +68,13 @@ class Vecteur :
             plt.plot(X,Y,Z,couleur)
 
 
-    def Dessine2 (self, origine, couleur) :
+    def Dessine2 (self, origine) :
         
         ''' Représente le vecteur self à l'origine "origine" '''
         ''' On utilise l'outil quiver pour représenter une forme de flèche '''
         
         if type(self) == Vecteur and type(origine) == Vecteur :
-            plt.quiver(origine.x, origine.y, origine.z, self.x, self.y, self.z, length = 0.05, normalize = True)
+            plt.quiver(origine.x, origine.y, origine.z, self.x, self.y, self.z, length = 0.00002, normalize = False)
 
 
     def Addition (self,other) :
@@ -133,6 +136,9 @@ class Vecteur :
 
         
     def Produit_Scalaire (self,other) :
+        
+        ''' Retourne le produit scalaire usuel dans R^3 de self et other '''
+        
         if type(self) == Vecteur and type(other) == Vecteur :        
             return self.x*other.x + self.y*other.y + self.z*other.z
 
@@ -169,12 +175,13 @@ def FromArrayToVecteur (V) :
 
 
 
-#####        ROTATION 
+##########        ROTATION 
 
 ''' Il est nécessaire d'appliquer une matrice de rotation
-    aux courbes ci dessus afin de prendre en compte
+    à chaque vecteur position afin de prendre en compte
     l'inclinaison du kite, qui a une grande influence
     sur les forces en jeu '''
+
 
 def Rotation (angle,axe) :
     
@@ -198,17 +205,17 @@ def Rotation (angle,axe) :
                         
                         
 global Rot  # Matrice de rotation à appliquer à tous les vecteurs
-            
+global θ    # Angle entre l'axe horizontal Oy et la corde OM       
 
-Rot = Rotation(pi/6,'x')
-
-
-
+θ = pi/4
+Rot = Rotation(θ,'x')
 
 
 
 
-### EQUATION PARAMETRIQUE EN 3D (Courbe de Viviani)
+
+
+##########         EQUATION PARAMETRIQUE EN 3D (Courbe de Viviani)
 
 ''' La courbe de Viviani modélise parfaitement le mouvement réel du Kite
     Il s'agit de l'intersection d'une sphère et d'un cylindre '''
@@ -216,20 +223,25 @@ Rot = Rotation(pi/6,'x')
 ''' On utilise des variables globales car elle sont fixées
     et cela permet d'alléger le nombre d'arguments des fonctions ci dessous '''
 
-global R    # Rayon de la sphère
-global a    # Rayon du cylindre
-global l    # Longueur de la corde
-global h    # Hauteur du Kite au centre du '8'
+global R    # Rayon de la sphère (en mètres) 
+global r    # Rayon du cylindre (ou est il passé ?) (en mètres)
+global l    # Longueur des fils (en mètres)
+global h    # Hauteur du Kite à l'instant t0 (début du mouvement) (en mètres)
 
-R = 1
-a = R/2
-l = 2
-h = 2
+R = 200
+r = R/10
+l = R           # Le rayon de la sphère dans laquelle peut évoluer le Kite est la longeur des fils
+h = l*sin(θ)    # La hauteur du Kite est la projection de sa position sur z0
 
-''' Pour pouvoir l'appliquer, il faut choisir l'orientation de la base de l'espace :
-    On choisit donc y croissant selon la direction du bateau,
-    z orienté vers le haut,
-    x orienté vers la droite. '''
+''' Pour pouvoir paramétrer cette courbe,
+    il faut choisir l'orientation de la base de l'espace.
+    On choisit donc les notations usuelles :
+    
+    x0 orienté vers la droite,
+    y0 rentrant (croissant selon le sens de déplacement du bateau),
+    z0 orienté vers le haut.
+    
+    Alors les équations paramétriques s'écrivent : '''
 
 global x
 global y
@@ -259,14 +271,13 @@ def M (t) :
 
 
 
-
-### EQUATIONS PHYSIQUES
+##########         EQUATIONS PHYSIQUES
 
 ''' Equations physiques : On repère le kite par
         - le temps t
         - sa position M(x(t), y(t), z(t))
         - sa vitesse V(M,dt)
-    Ainsi, la donnée de t et dt est suffisante au calcul des forces '''
+    Ainsi, la donnée de t et dt est suffisante pour le calcul des forces '''
 
 ''' Constantes physiques : '''
 
@@ -277,27 +288,28 @@ global ρ        # Masse volumique de l'air au niveau de la mer a 20°C (en kg/m
 global Cx       # Coefficient de traînée (sans dimension)
 global Cy       # Coefficient de portance (sans dimension)
 
-m = 0.03
+m = 20
 g = 9.8
-S = 1.2
+S = 200
 ρ = 1.225
-Cx = 1
-Cy = 1
+Cx = 0.6
+Cz = 0.7
 
 
 def NormeV (t) :
-    return 10 * cos(t - pi/6)**2 + 2
+    ''' Seule la norme de la vitesse peut être obtenue théoriquement '''
+    return 10 * cos(t-pi/4)**2 + 1
 
 
 def Vitesse (t,dt) :
-    V = M(t+dt) - M(t)
-    V = V * NormeV(t)
-    return V    # en m/s
+    V = M(t+dt) - M(t)      # Vecteur unitaire vitesse (tangent au mouvement)
+    V = V * NormeV(t)       # Multiplié par sa norme
+    return V                # en m/s
 
     
 def Poids () :
     ''' Selon z décroissants '''
-    return Vecteur(0,0,-m*g)
+    return Vecteur(0,0,-m*g)    # En Newtons
 
 
 def Vent (t) :
@@ -305,58 +317,106 @@ def Vent (t) :
     x_vent = 0
     y_vent = 0
     z_vent = 0
-    return Vecteur(x_vent, y_vent, z_vent)
+    return Vecteur(x_vent, y_vent, z_vent)  # en m/s
 
 
 def Vent_apparent (t,dt) :
-    return Vent(t) + Vitesse(t,dt)
+    ''' Vent effectivement subi par le Kite, dépendant de sa vitesse '''
+    return Vent(t) + Vitesse(t,dt)          # en m/s
 
 
 def Trainée (t,dt) :
-    V_app = Vent_apparent(t, dt).Norme()
-    return 0.5 * ρ * S * Cx * V_app*V_app
+    V_app = Vent_apparent(t, dt)
+    N_app = V_app.Norme()
+    Norme_Trainée = 0.5 * ρ * S * Cx * N_app**2         # Expression de la norme de la trainée
+    Sens_Trainée = V_app * (-1/N_app)                   # La trainée est de sens opposé au vent apparent
+    return Sens_Trainée * Norme_Trainée                 # En Newtons
 
 
 def Portance (t,dt) :
-    V_app = Vent_apparent(t, dt).Norme()
-    return 0.5 * ρ * S * Cy * V_app*V_app
-
-
-def Frottements (t,dt) :
-    ''' La Trainée est selon x et la portance selon z '''
-    return Vecteur(Trainée(t,dt), 0, Portance(t,dt))
+    V_app = Vent_apparent(t, dt)
+    N_app = V_app.Norme()
+    Norme_Portance = 0.5 * ρ * S * Cz * N_app**2
+    Sens_Portance = (z0 + y0)                           # La portance est orthogonal au vent apparent
+    return Sens_Portance * Norme_Portance
 
 
 def Résultante_Forces (t,dt) :
     ''' On somme toutes les forces en jeu '''
-    return Poids() + Frottements (t,dt) + Vent(t)
+    return Poids() + Trainée(t,dt) + Portance(t,dt)     # En Newtons
 
 
 
 
 
 
+##########          MODELISATION DU PORTE CONTENEUR
 
-### FONCTIONS
+''' On réprésente le porte-conteneur pour donner un sens de direction et de perspective '''
+
+global X_porte_conteneur
+global Y_porte_conteneur
+global Z_porte_conteneur
+
+X_porte_conteneur = [0, 0, 5, 5, 0, -2.5, -2.5, 0, -2.5, 7.5, 5, 7.5, 7.5, 5, 7.5, 2.5, -2.5, 0, 2.5, 5, 7.5, 7.5, 7.5, -2.5, -2.5, 7.5, 7.5, 7.5, 7.5, 7.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, 7.5, 7.5, 7.5, -2.5, -2.5, 7.5, 7.5, 7.5, 7.5, 7.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, 7.5]
+Y_porte_conteneur = [0, 50, 50, 0, 0, 0, 50, 50, 50, 50, 50, 50, 0, 0, 0, -20, 0, 0, -20, 0, 0, 15, 35, 35, 15, 15, 15, 35, 35, 35, 35, 35, 35, 15, 15, 15, 15, 20, 30, 30, 20, 20, 20, 30, 30, 30, 30, 30, 30, 20, 20, 20, 20]
+Z_porte_conteneur = [0, 0, 0, 0, 0, 5, 5, 0, 5, 5, 0, 5, 5, 0, 5, 5, 5, 0, 5, 0, 5, 5, 5, 5, 5, 5, 10, 10, 5, 10, 10, 5, 10, 10, 5, 10, 10, 10, 10, 10, 10, 10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15]
+
+''' Réorientations '''
+
+def Orientation (x) :
+    return -x
+
+Y_porte_conteneur = [ Orientation(y) for y in Y_porte_conteneur ]
+
+''' Mise à l'échelle '''
+
+def Echelle (a,x) :
+    return a*x
+
+X_porte_conteneur = [ Echelle(5,x) for x in X_porte_conteneur ]
+Y_porte_conteneur = [ Echelle(6,y) for y in Y_porte_conteneur ]
+Z_porte_conteneur = [ Echelle(3,z) for z in Z_porte_conteneur ]
+
+''' Translations '''
+
+def Translation (a,x) :
+    return a + x
+
+X_porte_conteneur = [ Translation(-12.5,x) for x in X_porte_conteneur ]
+Y_porte_conteneur = [ Translation(-120,y) for y in Y_porte_conteneur ]
+Z_porte_conteneur = [ Translation(-15,z) for z in Z_porte_conteneur ]
+
+
+
+
+
+
+#####           MODELISATION DE LA TRAJECTOIRE, FORCES ET VITESSES
+
+''' Base orthonormée de l'espace, pour pouvoir projeter les vecteurs : '''
+
+global x0
+global y0
+global z0
+
+x0 = Vecteur(1,0,0)
+y0 = Vecteur(0,1,0)
+z0 = Vecteur(0,0,1)
+
+global a    # Temps initial
+global b    # Temps final
+global n    # Nombre de pas
+
+a = 0
+b = 2* pi
+n = 100
 
 
 def Vecteur_théorique (t,dt) :
-    ''' Retourne vecteur_théorique = Vecteur(f(t)f(t+dt)) '''
+    ''' Retourne vecteur_théorique = vecteur tangent au mouvement '''
     Vth = M(t+dt) - M(t)
     return Vth
-
-
-def Vecteur_non_corrigé (t,dt):
-    ''' Issu des équations physiques '''
-    Vnc = Vitesse(t,dt)*0 + Résultante_Forces(t,dt)
-    return Vnc
-
-            
-def Vecteur_correction (t,dt) :
-    ''' Le vecteur correction recherché est alors la difference des deux précédents '''
-    Vcr = Vecteur_théorique(t,dt) - Vecteur_non_corrigé(t,dt)
-    return Vcr
-
 
 
 def Modélisation (a, b, n) :
@@ -364,71 +424,159 @@ def Modélisation (a, b, n) :
     ''' a,b : temps initial et final de l'intervalle sur lequel on modélise
         n : nombre de pas de la modélisation '''
     
-    dt = (b-a)/n                            # Taille du pas
-    T = arange(a,b,dt)                      # Discrétisation de l'intervalle
+    dt = (b-a)/n                                # Taille du pas
+    T = arange(a,b,dt)                          # Discrétisation de l'intervalle
 
     ''' On annote la figure pour s'orienter '''
 
-    plt.xlabel('x (en mètres)')
-    plt.ylabel('y (en mètres)')
+    plt.xlabel('x0 (en mètres)')
+    plt.ylabel('y0 (en mètres)')
     plt.title('Modélisation de la trajectoire du Kite')
-    M(a).Dessine(Vecteur(0,0,0),'b')        # Fil
+    plt.plot(X_porte_conteneur, Y_porte_conteneur, Z_porte_conteneur)      # Réprésentation du porte-conteneur    
+    M(a).Dessine(Vecteur(0,0,0),'red')          # Réprésentation des deux fils
     
-    for t in T :                            # A chaque instant                      
+    for t in T :                                # A chaque instant                      
         
         ''' On calcule les 3 vecteurs nécessaires '''
             
         vecteur_théorique = Vecteur_théorique (t,dt)
-        vecteur_non_corrigé = Vecteur_non_corrigé (t,dt)
-        vecteur_correction = Vecteur_correction (t,dt)
+        Forces = Résultante_Forces(t,dt)
+        vitesse = Vitesse(t,dt)
         
-        ''' Puis on les représente sur la figure '''
+        ''' Puis on les représente sur la figure. '''
 
-        Pos = M(t)                          # Position de la voile à l'instant t
+        Pos = M(t)                              # Position de la voile à l'instant t
         vecteur_théorique.Dessine(Pos,'k')
-        vecteur_non_corrigé.Dessine(Pos,'orange')
-        #vecteur_correction.Dessine(Pos,'g')
-        plt.pause(0.0000001)                # Permet d'animer
-        
+        Forces.Dessine2(Pos)
+        vitesse.Dessine(Pos,'orange')
+        plt.pause(0.0000001)                    # Permet d'animer
 
 
-
-        
-def Puissance_Moyenne (x, y, z, a, b, n) :
-
-    ''' Retourne la puissance moyenne d'une certaine courbe x,y,z
-        sur l'intervalle de temps [a,b] '''
-
-    dt = (b-a)/n
-    T = arange(a,b,dt)
-    P = 0
-    v0 = Vecteur(1,0,0)                 # Vecteur unitaire dans la direction du bateau
-    
-    for t in T :
-        Pos = M(t)
-        F = Résultante_Forces (t,dt)        
-        P += F.Produit_Scalaire (v0)    # La puissance est la résultante des forces projetée sur ce vecteur
-        
-    return P
-
-        
-def Comparaison (M1,M2) :
-    return 1
-    
-
-        
-
-### MODELISATION :
-
-
-
-a = 0
-b = 2*pi
-n = 150
 
 Modélisation (a, b, n)
 plt.show()
 
-#P = Puissance_Moyenne (x, y, z, a, b, n)
+
+
+
+##########          COMPARAISON DE DIFFERENTES TRAJECTOIRES
+
+# PROBLEME : la vitesse n'a été calculée que dans le cas de la courbe en 8 
+
+def Puissance_Moyenne (x, y, z, a, b, n) :
+
+    ''' Retourne la puissance moyenne en Watts d'une certaine courbe x,y,z
+        sur l'intervalle de temps [a,b]. '''
+
+    dt = (b-a)/n
+    T = arange(a,b,dt)
+    P = 0
+    
+    for t in T :
+        Pos = Vecteur( x(t) ,y(t), z(t) )
+        F = Résultante_Forces (t,dt)        
+        P += F.Produit_Scalaire (y0)        # Car on a choisi y0 croissant selon le sens de déplacement du bateau
+        
+    return P    # En Watts.
+
+        
+def Comparaison (x1, y1, z1, x2, y2, z2, a, b, n) :
+
+    ''' Comparaison de la puissance moyenne fournie par deux courbes différentes.
+        Si notre hypothèse est juste, la trajectoire en '8' devrait toujours en sortir victorieuse. '''
+        
+    P1 = Puissance_Moyenne(x1, y1, z1, a, b, n)
+    P2 = Puissance_Moyenne(x2, y2, z2, a, b, n)
+    if P1 == P2 :
+        return 'Les deux courbes fournissent en moyenne la même puissance : ' + str(P1) + ' Watts.'
+
+    elif P1 > P2 :
+        return 'La courbe 1 fournit en moyenne une puissance plus importante que la courbe 2. En effet : ' 'P1 = '+ str(P1) + ' W > P2 = ' + str(P2) + ' W.'
+
+    elif P2 > P1 :
+        return 'La courbe 2 fournit en moyenne une puissance plus importante que la courbe 1. En effet : ' 'P2 = '+ str(P2) + ' W > P1 = ' + str(P1) + ' W.'
+
+
+
+''' Comparaison du mouvement "en 8" et "immobile" '''
+
+def x2(t) :
+    return 0
+
+def y2(t) :
+    return l
+
+def z2(t) :
+    return h
+
+print( Comparaison(x, y, z, x2, y2, z2, a, b, n) )
+print( "A titre de comparaison, la puissance de propulsion du paquebot Queen Mary 2, l'un des plus gros paquebots du monde, est de 117 MW (Source : Carnival Group, constructeur)." )
+
+
+
+
+
+
+##########          CORRECTION ET APPLICATION AVEC ARDUINO
+
+
+def Vecteur_correction (t,dt) :
+    
+    ''' Le vecteur correction recherché est alors la difference entre
+        le vecteur résultante des forces et le vecteur théorique. '''
+    
+    V_corr = Résultante_Forces(t,dt) - Vecteur_théorique(t,dt)
+    return V_corr
+
+
+def Scalaire_correction (t,dt) :
+    
+    ''' On ne peut cependant controler le Kite que selon x0
+        d'où la nécessité d'une projection : '''
+    
+    V_corr = Vecteur_correction(t,dt)
+    S_corr = V_corr.Produit_Scalaire(x0)
+    return S_corr
+
+
+def Consigne_Moteurs (t,dt) :
+    
+    ''' L'objectif est de controler la voile par deux moteurs à double sens de rotation,
+        chacun ayant le contrôle d'un côté du fil.
+        
+        Il faut donc à chaque instant fournir aux moteurs un réel
+        appartenant à [-vitesse_de_rotation_max, vitesse_de_rotation_max]
+        dont le signe indique le sens de rotation,
+        et la valeur absolue la vitesse de rotation.
+        On choisit la convention ' + ' pour tirer et ' - ' pour laisser filer.
+        
+        On néglige pour l'instant le temps de réaction du moteur
+        (il suffit de renvoyer Arduino(t-tréac,dt) pour en prendre compte).
+
+        Pour les premiers tests, on remplacera les moteurs par des diodes :
+        5 à gauche et 5 à droite,
+        de couleurs "proportiennelles" à la vitesse de rotation. '''
+    
+    S_corr = Scalaire_correction(t,dt)
+
+    ''' On répartit l'effort sur les deux moteurs pour protéger le système '''
+    
+    moteur_gauche = -S_corr / 2      # Car x0 est orienté vers la droite
+    moteur_droit = S_corr / 2
+    return moteur_gauche , moteur_droit 
+
+
+def Arduino (a,b,n) :
+    
+    ''' a,b : temps initial et final de l'intervalle sur lequel on modélise
+        n : nombre de pas de la modélisation '''
+    
+    dt = (b-a)/n                        # Taille du pas
+    T = arange(a,b,dt)                  # Discrétisation de l'intervalle
+    for t in T :                        # A chaque instant :
+        print(Consigne_Moteurs(t,dt))   # On applique la fonction ci-dessus
+
+
+Arduino(a,b,n)
 
     

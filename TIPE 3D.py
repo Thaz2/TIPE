@@ -24,10 +24,11 @@
 
 import math
 import matplotlib.pyplot as plt
-from numpy import *
+from numpy import *           
 
-from mpl_toolkits.mplot3d import Axes3D     # Pour une modélisation 3D
-ax = Axes3D(plt.figure())
+from mpl_toolkits.mplot3d import Axes3D     
+ax = Axes3D(plt.figure())   # Pour une modélisation 3D
+cmap = plt.get_cmap()      # Pour représenter des couleurs
 
 
 
@@ -59,7 +60,7 @@ class Vecteur :
 
     def Dessine (self, origine, couleur) :
         
-        ''' Représente le vecteur self à l'origine "origine" '''
+        ''' Représente le vecteur self à la position "origine", dans la couleur "couleur" '''
         
         if type(self) == Vecteur and type(origine) == Vecteur :
             X = [origine.x , origine.x + self.x]
@@ -68,15 +69,16 @@ class Vecteur :
             plt.plot(X,Y,Z,couleur)
 
 
-    def Dessine2 (self, origine) :
+    def Dessine2 (self, origine, couleur_RGB):
         
-        ''' Représente le vecteur self à l'origine "origine" '''
-        ''' On utilise l'outil quiver pour représenter une forme de flèche '''
+        ''' Représente le vecteur self à l'origine "origine".
+            On utilise l'outil quiver pour représenter une forme de flèche.
+            Les couleurs doivent alors être données en RGB. '''
         
-        if type(self) == Vecteur and type(origine) == Vecteur :
-            plt.quiver(origine.x, origine.y, origine.z, self.x, self.y, self.z, length = 0.00002, normalize = False)
+        if type(self) == Vecteur and type(origine) == Vecteur : 
+            plt.quiver(origine.x, origine.y, origine.z, self.x, self.y, self.z, length = 1, color=cmap(couleur_RGB), normalize = False)
 
-
+        
     def Addition (self,other) :
         
         ''' Additionne le vecteur "self et le vecteur "other" '''
@@ -288,9 +290,9 @@ global ρ        # Masse volumique de l'air au niveau de la mer a 20°C (en kg/m
 global Cx       # Coefficient de traînée (sans dimension)
 global Cy       # Coefficient de portance (sans dimension)
 
-m = 20
+S = 120
+m = S/10
 g = 9.8
-S = 200
 ρ = 1.225
 Cx = 0.6
 Cz = 0.7
@@ -337,7 +339,7 @@ def Portance (t,dt) :
     V_app = Vent_apparent(t, dt)
     N_app = V_app.Norme()
     Norme_Portance = 0.5 * ρ * S * Cz * N_app**2
-    Sens_Portance = (z0 + y0)                           # La portance est orthogonal au vent apparent
+    Sens_Portance = (z0 + y0)                           # La portance est orthogonale au vent apparent
     return Sens_Portance * Norme_Portance
 
 
@@ -410,7 +412,7 @@ global n    # Nombre de pas
 
 a = 0
 b = 2* pi
-n = 100
+n = 80
 
 
 def Vecteur_théorique (t,dt) :
@@ -424,8 +426,8 @@ def Modélisation (a, b, n) :
     ''' a,b : temps initial et final de l'intervalle sur lequel on modélise
         n : nombre de pas de la modélisation '''
     
-    dt = (b-a)/n                                # Taille du pas
-    T = arange(a,b,dt)                          # Discrétisation de l'intervalle
+    dt = (b-a)/n                                        # Taille du pas
+    T = arange(a,b,dt)                                  # Discrétisation de l'intervalle
 
     ''' On annote la figure pour s'orienter '''
 
@@ -433,58 +435,83 @@ def Modélisation (a, b, n) :
     plt.ylabel('y0 (en mètres)')
     plt.title('Modélisation de la trajectoire du Kite')
     plt.plot(X_porte_conteneur, Y_porte_conteneur, Z_porte_conteneur)      # Réprésentation du porte-conteneur    
-    M(a).Dessine(Vecteur(0,0,0),'red')          # Réprésentation des deux fils
+    M(a).Dessine(Vecteur(0,0,0),'red')                  # Réprésentation des deux fils
     
-    for t in T :                                # A chaque instant                      
+    for t in T :                                        # A chaque instant                      
         
         ''' On calcule les 3 vecteurs nécessaires '''
             
         vecteur_théorique = Vecteur_théorique (t,dt)
-        Forces = Résultante_Forces(t,dt)
+        Forces = Résultante_Forces(t,dt) * (1/30000)      # Division de l'aplitude pour rester visible
         vitesse = Vitesse(t,dt)
         
         ''' Puis on les représente sur la figure. '''
 
-        Pos = M(t)                              # Position de la voile à l'instant t
+        Pos = M(t)                                      # Position de la voile à l'instant t
         vecteur_théorique.Dessine(Pos,'k')
-        Forces.Dessine2(Pos)
-        vitesse.Dessine(Pos,'orange')
-        plt.pause(0.0000001)                    # Permet d'animer
+        vitesse.Dessine2( Pos, [ 0.1, 0.1, 0.1 ] )
+        Forces.Dessine2( Pos, [ 0.8, 0.8, 0.8 ] )
+        plt.pause(0.0000001)                            # Permet d'animer
 
 
 
-Modélisation (a, b, n)
-plt.show()
+#Modélisation (a, b, n)
+#plt.show()
 
 
 
 
 ##########          COMPARAISON DE DIFFERENTES TRAJECTOIRES
 
-# PROBLEME : la vitesse n'a été calculée que dans le cas de la courbe en 8 
+# PROBLEME : la vitesse n'a été calculée que dans le cas de la courbe en 8
+
+def Calcul_Puissance (t, dt) :
+    F = Résultante_Forces (t,dt)        
+    P = F.Produit_Scalaire(y0)     # Car on a choisi y0 croissant selon le sens de déplacement du bateau
+    return P
+                      
 
 def Puissance_Moyenne (x, y, z, a, b, n) :
 
     ''' Retourne la puissance moyenne en Watts d'une certaine courbe x,y,z
         sur l'intervalle de temps [a,b]. '''
-
+    
     dt = (b-a)/n
     T = arange(a,b,dt)
     P = 0
     
     for t in T :
-        Pos = Vecteur( x(t) ,y(t), z(t) )
-        F = Résultante_Forces (t,dt)        
-        P += F.Produit_Scalaire (y0)        # Car on a choisi y0 croissant selon le sens de déplacement du bateau
+        P += Calcul_Puissance(t, dt)
         
-    return P    # En Watts.
+    P_moyenne = P/n  
+    return P_moyenne    # En Watts.
 
-        
+
+def Graphe_Puissance (x, y, z, a, b, n) :
+
+    ''' Réprésente graphiquement la puissance en fonnction du temps,
+        Ainsi que la puissance moyenne. '''
+
+    plt.xlabel('Temps (en secondes)')
+    plt.ylabel('Puissance (en Watts)')
+    plt.title('Modélisation de la puissance')
+    
+    dt = (b-a)/n
+    T = arange(a,b,dt)
+    P = [ Calcul_Puissance(t, dt) for t in T ]
+    P_moy = Puissance_Moyenne (x, y, z, a, b, n)
+
+    plt.plot(T,P,'orange')
+    plt.plot( [a,b], [P_moy,P_moy], 'r--' )
+    plt.annotate( 'Puissance moyenne', xy = (a-dt, P_moy) )
+    plt.show()
+ 
+    
 def Comparaison (x1, y1, z1, x2, y2, z2, a, b, n) :
 
     ''' Comparaison de la puissance moyenne fournie par deux courbes différentes.
         Si notre hypothèse est juste, la trajectoire en '8' devrait toujours en sortir victorieuse. '''
-        
+  
     P1 = Puissance_Moyenne(x1, y1, z1, a, b, n)
     P2 = Puissance_Moyenne(x2, y2, z2, a, b, n)
     if P1 == P2 :
@@ -498,6 +525,9 @@ def Comparaison (x1, y1, z1, x2, y2, z2, a, b, n) :
 
 
 
+#Graphe_Puissance (x, y, z, a, b, n)
+#plt.show()
+
 ''' Comparaison du mouvement "en 8" et "immobile" '''
 
 def x2(t) :
@@ -509,8 +539,8 @@ def y2(t) :
 def z2(t) :
     return h
 
-print( Comparaison(x, y, z, x2, y2, z2, a, b, n) )
-print( "A titre de comparaison, la puissance de propulsion du paquebot Queen Mary 2, l'un des plus gros paquebots du monde, est de 117 MW (Source : Carnival Group, constructeur)." )
+#print( Comparaison(x, y, z, x2, y2, z2, a, b, n) )
+#print( "A titre de comparaison, la puissance de propulsion du paquebot Queen Mary 2, l'un des plus gros paquebots du monde, est de 117 MW (Source : Carnival Group, constructeur)." )
 
 
 
@@ -561,7 +591,7 @@ def Consigne_Moteurs (t,dt) :
 
     ''' On répartit l'effort sur les deux moteurs pour protéger le système '''
     
-    moteur_gauche = -S_corr / 2      # Car x0 est orienté vers la droite
+    moteur_gauche = -S_corr / 2         # Car x0 est orienté vers la droite
     moteur_droit = S_corr / 2
     return moteur_gauche , moteur_droit 
 
